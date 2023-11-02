@@ -11,6 +11,41 @@ class AuthenticationError(ValueError):
     def __init__(self, message="Authentication failed"):
         self.message = message
         super().__init__(self.message)
+class Result:
+    text: str
+    url: str
+    page_title: str
+    relevance_score: float
+
+    def __init__(self, text: str, url: str, page_title: str, relevance_score: float):
+        self.text = text
+        self.url = url
+        self.page_title = page_title
+        self.relevance_score = relevance_score
+
+    def __str__(self):
+        if len(self.text) > 50:
+            shortened_text = self.text[:50] + "..."
+        else:
+            shortened_text = self.text
+        return (f"""
+Result(
+    url: {self.url}
+    page_title: {self.page_title}
+    relevance_score: {self.relevance_score}
+    text: {shortened_text}
+)
+""")
+
+class QueryResponse:
+    def __init__(self, results):
+        self.results = results
+
+    def __iter__(self):
+        return iter(self.results)
+    
+    def __len__(self):
+        return len(self.results)
 
 
 def default_api_key() -> str:
@@ -52,7 +87,13 @@ def list_collections():
     api_key = default_api_key()
     headers = request_headers(api_key)
 
-    response = requests.get(f"{API_BASE_URL}/list_collections", headers=headers)
+    response = requests.get(
+        f"{API_BASE_URL}/list_collections", 
+        headers=headers,
+        json={
+            "verbose": False,
+        }
+    )
     if response.status_code != 200:
         raise Exception(
             f"Request failed with status code {response.status_code}. Message: {response.text}"
@@ -61,7 +102,7 @@ def list_collections():
     return response.json()
 
 
-def query(collection_name: str, query_string: str, max_results: int = 5):
+def query(collection_name: str, query_string: str, max_results: int = 5) -> QueryResponse:
     api_key = default_api_key()
     headers = request_headers(api_key)
 
@@ -84,5 +125,8 @@ def query(collection_name: str, query_string: str, max_results: int = 5):
         raise Exception(
             f"Request failed with status code {response.status_code}. Message: {response.text}"
         )
+    
+    results_dict = response.json()["results"]
 
-    return response.json()
+    results = [Result(r["text"], r["url"], r["page_title"], r["relevance_score"]) for r in results_dict]
+    return QueryResponse(results=results)
