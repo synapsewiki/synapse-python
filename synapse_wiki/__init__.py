@@ -9,5 +9,5 @@ __all__ = [
 from .api import (
     create_collection,
     list_collections,
-    fetch,
+    query,
 )
